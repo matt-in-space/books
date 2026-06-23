@@ -2,6 +2,8 @@ package books_test
 
 import (
 	"books"
+	"cmp"
+	"slices"
 	"testing"
 )
 
@@ -65,6 +67,50 @@ func TestGetAllBooks_ReturnsAllBooks(t *testing.T) {
 
 	if len(got) != len(want) {
 		t.Fatalf("want %#v, got %#v", want, got)
+	}
+}
+
+func TestOpenCatalog_LoadsCatalogDataFromFile(t *testing.T) {
+	t.Parallel()
+
+	catalog, err := books.OpenCatalog("testdata/catalog.json")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := []books.Book{
+		{ID: "2", Title: "The Phantom Toolbooth", Author: "Norton Juster", Copies: 4},
+		{ID: "1", Title: "In Cold Blood", Author: "Truman Capote", Copies: 10},
+	}
+
+	got := catalog.GetAllBooks()
+	slices.SortFunc(got, func(a, b books.Book) int {
+		return cmp.Compare(a.Author, b.Author)
+	})
+
+	if !slices.Equal(want, got) {
+		t.Fatalf("want %v, got %v", want, got)
+	}
+}
+
+func TestOpenCatalog_FailsOnInvalidFile(t *testing.T) {
+	t.Parallel()
+
+	_, err := books.OpenCatalog("testdata/invalid_catalog.json")
+
+	if err == nil {
+		t.Fatal("want error, got nil")
+	}
+}
+
+func TestOpenCatalog_FailsOnMalformedData(t *testing.T) {
+	t.Parallel()
+
+	_, err := books.OpenCatalog("testdata/malformed")
+
+	if err == nil {
+		t.Fatal("want error, got nil")
 	}
 }
 

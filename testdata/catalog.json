@@ -1,0 +1,14 @@
+{
+  "1": {
+    "ID": "1",
+    "Title": "In Cold Blood",
+    "Author": "Truman Capote",
+    "Copies": 10
+  },
+  "2": {
+    "ID": "2",
+    "Title": "The Phantom Toolbooth",
+    "Author": "Norton Juster",
+    "Copies": 4
+  }
+}

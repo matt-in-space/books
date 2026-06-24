@@ -92,3 +92,20 @@ func (catalog Catalog) SetCopies(ID string, copies int) error {
 
 	return nil
 }
+
+func (catalog Catalog) Sync(path string) error {
+	file, err := os.Create(path)
+
+	if err != nil {
+		return err
+	}
+
+	defer file.Close()
+	err = json.NewEncoder(file).Encode(catalog)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

@@ -75,3 +75,20 @@ func (catalog Catalog) GetBook(ID string) (Book, bool) {
 func (catalog Catalog) RemoveBook(ID string) {
 	delete(catalog, ID)
 }
+
+func (catalog Catalog) SetCopies(ID string, copies int) error {
+	if copies < 0 {
+		return fmt.Errorf("negative number of copies: %d", copies)
+	}
+
+	book, ok := catalog[ID]
+
+	if !ok {
+		return fmt.Errorf("book not found: %s", ID)
+	}
+
+	book.Copies = copies
+	catalog[ID] = book
+
+	return nil
+}

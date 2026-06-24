@@ -144,3 +144,33 @@ func TestAddBook_AddsABook(t *testing.T) {
 		t.Fatal("want 1 book, got", len(catalog))
 	}
 }
+
+func TestSetCopies_UpdatesCopies(t *testing.T) {
+	catalog := books.Catalog{}
+	book := mockBook()
+
+	catalog.AddBook(book)
+
+	err := catalog.SetCopies("1", 5)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if catalog[book.ID].Copies != 5 {
+		t.Fatal("want 5 copies, got", catalog[book.ID].Copies)
+	}
+}
+
+func TestSetCopies_RequiresValidCount(t *testing.T) {
+	catalog := books.Catalog{}
+	book := mockBook()
+
+	catalog.AddBook(book)
+
+	err := catalog.SetCopies("1", -1)
+
+	if err == nil {
+		t.Fatal("want error, got nil")
+	}
+}

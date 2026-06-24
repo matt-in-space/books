@@ -63,8 +63,13 @@ func (catalog Catalog) GetAllBooks() []Book {
 	return slices.Collect(maps.Values(catalog))
 }
 
-func (catalog Catalog) AddBook(book Book) {
+func (catalog Catalog) AddBook(book Book) error {
+	if _, ok := catalog[book.ID]; ok {
+		return fmt.Errorf("book already exists: %s", book.ID)
+	}
+
 	catalog[book.ID] = book
+	return nil
 }
 
 func (catalog Catalog) GetBook(ID string) (Book, bool) {

@@ -65,6 +65,7 @@ func TestGetAllBooks_ReturnsAllBooks(t *testing.T) {
 }
 
 func TestGetBook_ReturnsFoundBook(t *testing.T) {
+	t.Parallel()
 	catalog := mockCatalog()
 
 	_, ok := catalog.GetBook("1")
@@ -76,6 +77,7 @@ func TestGetBook_ReturnsFoundBook(t *testing.T) {
 }
 
 func TestGetBook_ReturnsNotFound(t *testing.T) {
+	t.Parallel()
 	catalog := mockCatalog()
 
 	_, ok := catalog.GetBook("blah")
@@ -86,6 +88,7 @@ func TestGetBook_ReturnsNotFound(t *testing.T) {
 }
 
 func TestAddBook_AddsABook(t *testing.T) {
+	t.Parallel()
 	catalog := books.Catalog{}
 	catalog.AddBook(books.Book{})
 
@@ -94,7 +97,23 @@ func TestAddBook_AddsABook(t *testing.T) {
 	}
 }
 
+func TestAddBook_FailsOnDuplicateID(t *testing.T) {
+	t.Parallel()
+	catalog := books.Catalog{}
+	catalog.AddBook(books.Book{ID: "1"})
+	err := catalog.AddBook(books.Book{ID: "1"})
+
+	if err == nil {
+		t.Fatal("want error, got nil")
+	}
+
+	if len(catalog) != 1 {
+		t.Fatal("want 1 book, got", len(catalog))
+	}
+}
+
 func TestSetCopies_UpdatesCopies(t *testing.T) {
+	t.Parallel()
 	catalog := mockCatalog()
 	err := catalog.SetCopies("1", 5)
 
@@ -108,6 +127,7 @@ func TestSetCopies_UpdatesCopies(t *testing.T) {
 }
 
 func TestSetCopies_RequiresValidCount(t *testing.T) {
+	t.Parallel()
 	catalog := books.Catalog{}
 	catalog.AddBook(books.Book{ID: "1"})
 

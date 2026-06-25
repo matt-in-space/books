@@ -7,12 +7,10 @@ import (
 	"testing"
 )
 
-func mockCatalog() books.Catalog {
-	catalog := books.Catalog{
-		"1": {ID: "1", Title: "In Cold Blood", Author: "Truman Capote", Copies: 10},
-		"2": {ID: "2", Title: "The Stand", Author: "Stephen King", Copies: 3},
-	}
-
+func mockCatalog() *books.Catalog {
+	catalog := books.NewCatalog()
+	catalog.AddBook(books.Book{ID: "1", Title: "In Cold Blood", Author: "Truman Capote", Copies: 10})
+	catalog.AddBook(books.Book{ID: "2", Title: "The Stand", Author: "Stephen King", Copies: 3})
 	return catalog
 }
 
@@ -89,17 +87,18 @@ func TestGetBook_ReturnsNotFound(t *testing.T) {
 
 func TestAddBook_AddsABook(t *testing.T) {
 	t.Parallel()
-	catalog := books.Catalog{}
+	catalog := books.NewCatalog()
 	catalog.AddBook(books.Book{})
+	total := len(catalog.GetAllBooks())
 
-	if len(catalog) != 1 {
-		t.Fatal("want 1 book, got", len(catalog))
+	if total != 1 {
+		t.Fatal("want 1 book, got", total)
 	}
 }
 
 func TestAddBook_FailsOnDuplicateID(t *testing.T) {
 	t.Parallel()
-	catalog := books.Catalog{}
+	catalog := books.NewCatalog()
 	catalog.AddBook(books.Book{ID: "1"})
 	err := catalog.AddBook(books.Book{ID: "1"})
 
@@ -107,29 +106,31 @@ func TestAddBook_FailsOnDuplicateID(t *testing.T) {
 		t.Fatal("want error, got nil")
 	}
 
-	if len(catalog) != 1 {
-		t.Fatal("want 1 book, got", len(catalog))
+	if len(catalog.GetAllBooks()) != 1 {
+		t.Fatal("want 1 book, got", len(catalog.GetAllBooks()))
 	}
 }
 
 func TestSetCopies_UpdatesCopies(t *testing.T) {
 	t.Parallel()
-	catalog := mockCatalog()
+	catalog := books.NewCatalog()
+	catalog.AddBook(books.Book{ID: "1", Title: "In Cold Blood", Author: "Truman Capote", Copies: 10})
 	err := catalog.SetCopies("1", 5)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if catalog["1"].Copies != 5 {
-		t.Fatal("want 5 copies, got", catalog["1"].Copies)
+	book, _ := catalog.GetBook("1")
+
+	if book.Copies != 5 {
+		t.Fatal("want 5 copies, got", book.Copies)
 	}
 }
 
 func TestSetCopies_RequiresValidCount(t *testing.T) {
 	t.Parallel()
-	catalog := books.Catalog{}
-	catalog.AddBook(books.Book{ID: "1"})
+	catalog := mockCatalog()
 
 	err := catalog.SetCopies("1", -1)
 
@@ -138,12 +139,34 @@ func TestSetCopies_RequiresValidCount(t *testing.T) {
 	}
 }
 
+func TestSetCopies_IsRaceFree(t *testing.T) {
+	t.Parallel()
+	catalog := mockCatalog()
+
+	go func() {
+		for range 100 {
+			err := catalog.SetCopies("1", 0)
+			if err != nil {
+				panic(err)
+			}
+		}
+	}()
+
+	for range 100 {
+		err := catalog.SetCopies("1", 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 func TestCatalogSync_ReadsAndWritesCatalog(t *testing.T) {
 	t.Parallel()
 	path := t.TempDir() + "/catalog.json"
 	catalog := mockCatalog()
+	catalog.Path = path
 
-	err := catalog.Sync(path)
+	err := catalog.Sync()
 
 	if err != nil {
 		t.Fatal(err)
@@ -157,6 +180,15 @@ func TestCatalogSync_ReadsAndWritesCatalog(t *testing.T) {
 
 	got := written.GetAllBooks()
 	assertBooksEqual(t, got)
+}
+
+func TestNewCatalog_CreatesEmptyCatalog(t *testing.T) {
+	t.Parallel()
+	catalog := books.NewCatalog()
+	books := catalog.GetAllBooks()
+	if len(books) != 0 {
+		t.Fatal("want empty catalog, got non-empty")
+	}
 }
 
 func assertBooksEqual(t *testing.T, got []books.Book) {

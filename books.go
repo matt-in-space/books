@@ -6,6 +6,7 @@ import (
 	"maps"
 	"os"
 	"slices"
+	"sync"
 )
 
 type Book struct {
@@ -15,17 +16,20 @@ type Book struct {
 	Copies int
 }
 
-type Catalog map[string]Book
+type Catalog struct {
+	mu   *sync.RWMutex
+	data map[string]Book
+	Path string
+}
 
-func GetCatalog() Catalog {
-	return map[string]Book{
-		"1": {ID: "1", Title: "In Cold Blood", Author: "Truman Capote", Copies: 10},
-		"2": {ID: "2", Title: "The Phantom Toolbooth", Author: "Norton Juster", Copies: 4},
-		"3": {ID: "3", Title: "The Way of Kings", Author: "Brandon Sanderson", Copies: 1},
+func NewCatalog() *Catalog {
+	return &Catalog{
+		mu:   &sync.RWMutex{},
+		data: map[string]Book{},
 	}
 }
 
-func OpenCatalog(path string) (Catalog, error) {
+func OpenCatalog(path string) (*Catalog, error) {
 	file, err := os.Open(path)
 
 	if err != nil {
@@ -36,8 +40,9 @@ func OpenCatalog(path string) (Catalog, error) {
 	// of where that return statement is reached
 	// This can be used for cleanup in numerous scenarios
 	defer file.Close()
-	catalog := Catalog{}
-	err = json.NewDecoder(file).Decode(&catalog)
+	catalog := NewCatalog()
+	catalog.Path = path
+	err = json.NewDecoder(file).Decode(&catalog.data)
 
 	if err != nil {
 		return nil, err
@@ -46,7 +51,7 @@ func OpenCatalog(path string) (Catalog, error) {
 	return catalog, nil
 }
 
-func (book Book) String() string {
+func (book *Book) String() string {
 	return fmt.Sprintf("%s by %s (copies: %d)", book.Title, book.Author, book.Copies)
 }
 
@@ -59,54 +64,64 @@ func (book *Book) SetCopies(copies int) error {
 	return nil
 }
 
-func (catalog Catalog) GetAllBooks() []Book {
-	return slices.Collect(maps.Values(catalog))
+func (catalog *Catalog) GetAllBooks() []Book {
+	return slices.Collect(maps.Values(catalog.data))
 }
 
-func (catalog Catalog) AddBook(book Book) error {
-	if _, ok := catalog[book.ID]; ok {
+func (catalog *Catalog) AddBook(book Book) error {
+	if _, ok := catalog.data[book.ID]; ok {
 		return fmt.Errorf("book already exists: %s", book.ID)
 	}
 
-	catalog[book.ID] = book
+	catalog.data[book.ID] = book
 	return nil
 }
 
-func (catalog Catalog) GetBook(ID string) (Book, bool) {
-	book, ok := catalog[ID]
+func (catalog *Catalog) GetBook(ID string) (Book, bool) {
+	book, ok := catalog.data[ID]
 	return book, ok
 }
 
-func (catalog Catalog) RemoveBook(ID string) {
-	delete(catalog, ID)
+func (catalog *Catalog) RemoveBook(ID string) {
+	delete(catalog.data, ID)
 }
 
-func (catalog Catalog) SetCopies(ID string, copies int) error {
+func (catalog *Catalog) SetCopies(ID string, copies int) error {
 	if copies < 0 {
 		return fmt.Errorf("negative number of copies: %d", copies)
 	}
 
-	book, ok := catalog[ID]
+	book, ok := catalog.data[ID]
 
 	if !ok {
 		return fmt.Errorf("book not found: %s", ID)
 	}
 
 	book.Copies = copies
-	catalog[ID] = book
+	catalog.data[ID] = book
 
 	return nil
 }
 
-func (catalog Catalog) Sync(path string) error {
-	file, err := os.Create(path)
+func (catalog *Catalog) GetCopies(ID string) (int, error) {
+	book, ok := catalog.data[ID]
+
+	if !ok {
+		return 0, fmt.Errorf("book not found: %s", ID)
+	}
+
+	return book.Copies, nil
+}
+
+func (catalog *Catalog) Sync() error {
+	file, err := os.Create(catalog.Path)
 
 	if err != nil {
 		return err
 	}
 
 	defer file.Close()
-	err = json.NewEncoder(file).Encode(catalog)
+	err = json.NewEncoder(file).Encode(catalog.data)
 
 	if err != nil {
 		return err

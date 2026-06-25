@@ -65,10 +65,14 @@ func (book *Book) SetCopies(copies int) error {
 }
 
 func (catalog *Catalog) GetAllBooks() []Book {
+	catalog.mu.RLock()
+	defer catalog.mu.RUnlock()
 	return slices.Collect(maps.Values(catalog.data))
 }
 
 func (catalog *Catalog) AddBook(book Book) error {
+	catalog.mu.Lock()
+	defer catalog.mu.Unlock()
 	if _, ok := catalog.data[book.ID]; ok {
 		return fmt.Errorf("book already exists: %s", book.ID)
 	}
@@ -78,11 +82,15 @@ func (catalog *Catalog) AddBook(book Book) error {
 }
 
 func (catalog *Catalog) GetBook(ID string) (Book, bool) {
+	catalog.mu.RLock()
+	defer catalog.mu.RUnlock()
 	book, ok := catalog.data[ID]
 	return book, ok
 }
 
 func (catalog *Catalog) RemoveBook(ID string) {
+	catalog.mu.Lock()
+	defer catalog.mu.Unlock()
 	delete(catalog.data, ID)
 }
 
@@ -91,6 +99,8 @@ func (catalog *Catalog) SetCopies(ID string, copies int) error {
 		return fmt.Errorf("negative number of copies: %d", copies)
 	}
 
+	catalog.mu.Lock()
+	defer catalog.mu.Unlock()
 	book, ok := catalog.data[ID]
 
 	if !ok {
@@ -104,6 +114,8 @@ func (catalog *Catalog) SetCopies(ID string, copies int) error {
 }
 
 func (catalog *Catalog) GetCopies(ID string) (int, error) {
+	catalog.mu.RLock()
+	defer catalog.mu.RUnlock()
 	book, ok := catalog.data[ID]
 
 	if !ok {
@@ -114,6 +126,8 @@ func (catalog *Catalog) GetCopies(ID string) (int, error) {
 }
 
 func (catalog *Catalog) Sync() error {
+	catalog.mu.RLock()
+	defer catalog.mu.RUnlock()
 	file, err := os.Create(catalog.Path)
 
 	if err != nil {

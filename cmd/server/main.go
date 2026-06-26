@@ -1,14 +1,25 @@
 package main
 
 import (
+	"books"
 	"fmt"
-	"net/http"
+	"os"
 )
 
 func main() {
-	http.ListenAndServe(":3000", http.HandlerFunc(ping))
-}
+	args := os.Args[1:]
 
-func ping(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "pong")
+	if len(args) != 1 {
+		fmt.Println("Usage: server <catalog_path>")
+		os.Exit(1)
+	}
+
+	path := args[0]
+	catalog, err := books.OpenCatalog(path)
+
+	if err != nil {
+		panic(err)
+	}
+
+	books.ListenAndServe(":3000", catalog)
 }

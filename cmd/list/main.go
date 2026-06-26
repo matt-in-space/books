@@ -2,26 +2,42 @@ package main
 
 import (
 	"books"
-	"cmp"
+	"encoding/json"
 	"fmt"
-	"slices"
+	"io"
+	"net/http"
 )
 
 func main() {
-	catalog, err := books.OpenCatalog("testdata/catalog.json")
+	res, err := http.Get("http://localhost:3000/list")
 
 	if err != nil {
-		fmt.Printf("Opening catalog: %v\n", err)
+		fmt.Printf("Request: %v\n", err)
 		return
 	}
 
-	catalogBooks := catalog.GetAllBooks()
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		fmt.Printf("Request: %v\n", res.Status)
+		return
+	}
 
-	slices.SortFunc(catalogBooks, func(a, b books.Book) int {
-		return cmp.Compare(a.Author, b.Author)
-	})
+	data, err := io.ReadAll(res.Body)
 
-	for _, book := range catalogBooks {
+	if err != nil {
+		fmt.Printf("Reading response: %v\n", err)
+		return
+	}
+
+	list := []books.Book{}
+	err = json.Unmarshal(data, &list)
+
+	if err != nil {
+		fmt.Printf("Parsing response: %v\n", err)
+		return
+	}
+
+	for _, book := range list {
 		fmt.Println(book)
 	}
 }

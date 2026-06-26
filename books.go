@@ -51,7 +51,7 @@ func OpenCatalog(path string) (*Catalog, error) {
 	return catalog, nil
 }
 
-func (book *Book) String() string {
+func (book Book) String() string {
 	return fmt.Sprintf("%s by %s (copies: %d)", book.Title, book.Author, book.Copies)
 }
 

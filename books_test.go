@@ -3,6 +3,9 @@ package books_test
 import (
 	"books"
 	"cmp"
+	"encoding/json"
+	"net"
+	"net/http"
 	"slices"
 	"testing"
 )
@@ -191,6 +194,43 @@ func TestNewCatalog_CreatesEmptyCatalog(t *testing.T) {
 	}
 }
 
+func TestServer_ListsAllBooks(t *testing.T) {
+	t.Parallel()
+	catalog := mockCatalog()
+	catalog.Path = t.TempDir() + "/catalog.json"
+	addr := randomLocalAddr(t)
+
+	go func() {
+		err := books.ListenAndServe(addr, catalog)
+		if err != nil {
+			panic(err)
+		}
+	}()
+
+	resp, err := http.Get("http://" + addr)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("want status OK, got %v", resp.Status)
+	}
+
+	bookList := []books.Book{}
+	err = json.NewDecoder(resp.Body).Decode(&bookList)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assertBooksEqual(t, bookList)
+}
+
+// *** Helper functions ***
+
 func assertBooksEqual(t *testing.T, got []books.Book) {
 	t.Helper()
 
@@ -206,4 +246,14 @@ func assertBooksEqual(t *testing.T, got []books.Book) {
 	if !slices.Equal(want, got) {
 		t.Fatalf("want %v, got %v", want, got)
 	}
+}
+
+func randomLocalAddr(t *testing.T) string {
+	t.Helper()
+	l, err := net.Listen("tcp", ":0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+	return l.Addr().String()
 }

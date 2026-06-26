@@ -2,7 +2,10 @@ package main
 
 import (
 	"books"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 )
 
@@ -12,19 +15,25 @@ func main() {
 		return
 	}
 
-	catalog, err := books.OpenCatalog("testdata/catalog.json")
+	ID := os.Args[1]
+	res, err := http.Get("http://localhost:3000/v1/find/" + ID)
 
 	if err != nil {
-		fmt.Printf("Opening catalog: %v\n", err)
+		fmt.Printf("Request: %v\n", err)
 		return
 	}
 
-	ID := os.Args[1]
+	defer res.Body.Close()
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		fmt.Printf("Reading response: %v\n", err)
+		return
+	}
 
-	book, found := catalog.GetBook(ID)
-
-	if !found {
-		fmt.Println("Book not found")
+	book := books.Book{}
+	err = json.Unmarshal(body, &book)
+	if err != nil {
+		fmt.Printf("Unmarshalling response: %v\n", err)
 		return
 	}
 

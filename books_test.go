@@ -207,7 +207,7 @@ func TestServer_ListsAllBooks(t *testing.T) {
 		}
 	}()
 
-	resp, err := http.Get("http://" + addr)
+	resp, err := http.Get("http://" + addr + "/v1/list")
 
 	if err != nil {
 		t.Fatal(err)
@@ -227,6 +227,43 @@ func TestServer_ListsAllBooks(t *testing.T) {
 	}
 
 	assertBooksEqual(t, bookList)
+}
+
+func TestServer_FindsBook(t *testing.T) {
+	t.Parallel()
+	catalog := mockCatalog()
+	catalog.Path = t.TempDir() + "/catalog.json"
+	addr := randomLocalAddr(t)
+
+	go func() {
+		err := books.ListenAndServe(addr, catalog)
+		if err != nil {
+			panic(err)
+		}
+	}()
+
+	resp, err := http.Get("http://" + addr + "/v1/find/1")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("want status OK, got %v", resp.Status)
+	}
+
+	book := books.Book{}
+	err = json.NewDecoder(resp.Body).Decode(&book)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if book.ID != "1" {
+		t.Fatalf("want book ID 1, got %v", book.ID)
+	}
 }
 
 // *** Helper functions ***

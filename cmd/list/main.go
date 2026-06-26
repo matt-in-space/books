@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	res, err := http.Get("http://localhost:3000/list")
+	res, err := http.Get("http://localhost:3000/v1/list")
 
 	if err != nil {
 		fmt.Printf("Request: %v\n", err)

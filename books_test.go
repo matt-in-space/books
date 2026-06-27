@@ -266,6 +266,32 @@ func TestServer_FindsBook(t *testing.T) {
 	}
 }
 
+func TestServer_FindBookReturnsNotFound(t *testing.T) {
+	t.Parallel()
+	catalog := mockCatalog()
+	catalog.Path = t.TempDir() + "/catalog.json"
+	addr := randomLocalAddr(t)
+
+	go func() {
+		err := books.ListenAndServe(addr, catalog)
+		if err != nil {
+			panic(err)
+		}
+	}()
+
+	resp, err := http.Get("http://" + addr + "/v1/find/oof")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("want status NotFound, got %v", resp.Status)
+	}
+}
+
 // *** Helper functions ***
 
 func assertBooksEqual(t *testing.T, got []books.Book) {

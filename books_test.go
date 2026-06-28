@@ -10,13 +10,6 @@ import (
 	"testing"
 )
 
-func mockCatalog() *books.Catalog {
-	catalog := books.NewCatalog()
-	catalog.AddBook(books.Book{ID: "1", Title: "In Cold Blood", Author: "Truman Capote", Copies: 10})
-	catalog.AddBook(books.Book{ID: "2", Title: "The Stand", Author: "Stephen King", Copies: 3})
-	return catalog
-}
-
 func TestBookToString_FormatsBookInfoAsString(t *testing.T) {
 	t.Parallel()
 
@@ -65,6 +58,18 @@ func TestGetAllBooks_ReturnsAllBooks(t *testing.T) {
 	assertBooksEqual(t, got)
 }
 
+func TestGetAllBooks_OnClientReturnsAllBooks(t *testing.T) {
+	t.Parallel()
+	client := mockClient(t)
+	books, err := client.GetAllBooks()
+
+	if err != nil {
+		t.Fatalf("Get all books failed with error %v", err)
+	}
+
+	assertBooksEqual(t, books)
+}
+
 func TestGetBook_ReturnsFoundBook(t *testing.T) {
 	t.Parallel()
 	catalog := mockCatalog()
@@ -85,6 +90,20 @@ func TestGetBook_ReturnsNotFound(t *testing.T) {
 
 	if ok {
 		t.Fatal("want not found, got book")
+	}
+}
+
+func TestGetBook_OnClientFindsBookById(t *testing.T) {
+	t.Parallel()
+	client := mockClient(t)
+	got, err := client.GetBook("1")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if Book1 != got {
+		t.Fatalf("want %#v, got %#v", Book1, got)
 	}
 }
 
@@ -117,7 +136,7 @@ func TestAddBook_FailsOnDuplicateID(t *testing.T) {
 func TestSetCopies_UpdatesCopies(t *testing.T) {
 	t.Parallel()
 	catalog := books.NewCatalog()
-	catalog.AddBook(books.Book{ID: "1", Title: "In Cold Blood", Author: "Truman Capote", Copies: 10})
+	catalog.AddBook(Book1)
 	err := catalog.SetCopies("1", 5)
 
 	if err != nil {
@@ -261,8 +280,8 @@ func TestServer_FindsBook(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if book.ID != "1" {
-		t.Fatalf("want book ID 1, got %v", book.ID)
+	if book != Book1 {
+		t.Fatalf("want book %v, got %v", Book1, book)
 	}
 }
 
@@ -293,13 +312,39 @@ func TestServer_FindBookReturnsNotFound(t *testing.T) {
 }
 
 // *** Helper functions ***
+var (
+	Book1 = books.Book{ID: "1", Title: "In Cold Blood", Author: "Truman Capote", Copies: 10}
+	Book2 = books.Book{ID: "2", Title: "The Stand", Author: "Stephen King", Copies: 3}
+)
+
+func mockCatalog() *books.Catalog {
+	catalog := books.NewCatalog()
+	catalog.AddBook(Book1)
+	catalog.AddBook(Book2)
+	return catalog
+}
+
+func mockClient(t *testing.T) *books.Client {
+	addr := randomLocalAddr(t)
+	catalog := mockCatalog()
+	catalog.Path = t.TempDir() + "/catalog.json"
+
+	go func() {
+		err := books.ListenAndServe(addr, catalog)
+		if err != nil {
+			panic(err)
+		}
+	}()
+
+	return books.NewClient(addr)
+}
 
 func assertBooksEqual(t *testing.T, got []books.Book) {
 	t.Helper()
 
 	want := []books.Book{
-		{ID: "1", Title: "In Cold Blood", Author: "Truman Capote", Copies: 10},
-		{ID: "2", Title: "The Stand", Author: "Stephen King", Copies: 3},
+		Book1,
+		Book2,
 	}
 
 	slices.SortFunc(got, func(a, b books.Book) int {

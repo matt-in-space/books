@@ -2,10 +2,7 @@ package main
 
 import (
 	"books"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 )
 
@@ -16,24 +13,11 @@ func main() {
 	}
 
 	ID := os.Args[1]
-	res, err := http.Get("http://localhost:3000/v1/find/" + ID)
+	client := books.NewClient("localhost:3000")
+	book, err := client.GetBook(ID)
 
 	if err != nil {
 		fmt.Printf("Request: %v\n", err)
-		return
-	}
-
-	defer res.Body.Close()
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		fmt.Printf("Reading response: %v\n", err)
-		return
-	}
-
-	book := books.Book{}
-	err = json.Unmarshal(body, &book)
-	if err != nil {
-		fmt.Printf("Unmarshalling response: %v\n", err)
 		return
 	}
 
